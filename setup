@@ -1,0 +1,4 @@
+chmod +x mh/ui
+chmod +x mh/by
+
+alias mh='$HOME/mh/ui'

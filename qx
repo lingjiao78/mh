@@ -1,0 +1,141 @@
+#半生
+import os
+
+# 1. 输入数字并转换为小端序
+def to_little_endian(num_str):
+    num = int(num_str)
+    # 确保数字转换为字节序列
+    num_bytes = num.to_bytes((num.bit_length() + 7) // 8, 'little')  # 转换为小端序字节序列
+    return num_bytes
+
+# 2. 读取配置文件内容并转换为十六进制字符串
+def read_config_file(config_path):
+    try:
+        with open(config_path, 'rb') as file:  # 以二进制模式读取
+            content_bytes = file.read()
+        content_hex = content_bytes.hex()  # 转换为十六进制字符串
+        print(f"配置文件内容（十六进制）: {content_hex}")  # 打印配置文件内容
+        return content_hex
+    except FileNotFoundError:
+        print(f"文件{config_path}未找到")
+        return None
+
+# 3. 搜索uexp文件
+def find_uexp_files(directory):
+    return [f for f in os.listdir(directory) if f.endswith('.uexp')]
+
+# 4. 执行文件操作
+def process_file(file_path, a_bytes, b_bytes, x_hex):
+    try:
+        with open(file_path, 'rb') as file:
+            file_content = file.read()
+
+        # 找到a的位置
+        a_index = file_content.find(a_bytes)
+        print(f"枪械的位置：{a_index}")
+
+        # 向上搜索a上面第一个与x匹配的十六进制
+        a_x_index = search_prev_hex(file_content, x_hex, a_index)
+        if a_x_index != -1:
+            x1_hex = file_content[a_x_index + len(x_hex)//2:a_x_index + len(x_hex)//2 + 40].hex()
+            print(f"枪械上与配置匹配的位置：{a_x_index}")
+            print(f"枪械以下十六进制：{x1_hex}")
+        else:
+            print("在枪械小端序上没有找到与配置匹配的十六进制")
+            return
+
+        # 找到b的位置
+        b_index = file_content.find(b_bytes, a_index + len(a_bytes))
+        print(f"皮肤的位置：{b_index}")
+
+        # 向上搜索b上面第一个与x匹配的十六进制
+        b_x_index = search_prev_hex(file_content, x_hex, b_index)
+        if b_x_index != -1:
+            x2_hex = file_content[b_x_index + len(x_hex)//2:b_x_index + len(x_hex)//2 + 40].hex()
+            print(f"皮肤上与配置匹配的位置：{b_x_index}")
+            print(f"皮肤以下十六进制：{x2_hex}")
+        else:
+            print("在皮肤小端序上没有找到与配置匹配的十六进制")
+            return
+
+        # 互换x1和x2以下20对十六进制的位置
+        new_content = (
+            file_content[:a_x_index + len(x_hex)//2] +
+            bytes.fromhex(x2_hex) +
+            file_content[a_x_index + len(x_hex)//2 + 40:b_x_index + len(x_hex)//2] +
+            bytes.fromhex(x1_hex) +
+            file_content[b_x_index + len(x_hex)//2 + 40:]
+        )
+
+        # 确认x1与x2以下20对十六进制互换了位置
+        with open(file_path, 'wb') as file:
+            file.write(new_content)
+
+        # 检查是否成功互换
+        if new_content[a_x_index + len(x_hex)//2:a_x_index + len(x_hex)//2 + 40].hex() == x2_hex and new_content[b_x_index + len(x_hex)//2:b_x_index + len(x_hex)//2 + 40].hex() == x1_hex:
+            print("成功")
+        else:
+            print("失败")
+
+    except FileNotFoundError:
+        print(f"文件{file_path}未找到")
+    except Exception as e:
+        print(f"发生错误：{e}")
+
+def search_prev_hex(data, hex_str, limit):
+    """在数据中搜索指定的十六进制字符串，从limit开始向上搜索"""
+    index = data.rfind(bytes.fromhex(hex_str), 0, limit)
+    if index != -1:
+        return index
+    return -1
+
+def main():
+    # 获取用户输入的两串数字
+    num1 = input("请输入要修改的枪械代码：")
+    if num1 == "":
+        print("程序已退出")
+        return
+
+    num2 = input("请输入要改为的皮肤代码：")
+    if num2 == "":
+        print("程序已退出")
+        return
+
+    # 转换为小端序并打印
+    a_bytes = to_little_endian(num1)
+    b_bytes = to_little_endian(num2)
+    print(f"枪械小端序结果: {a_bytes.hex()}")
+    print(f"皮肤小端序结果: {b_bytes.hex()}")
+
+    # 读取配置文件内容
+    config_path = "/storage/emulated/0/配置"
+    x_hex = read_config_file(config_path)
+    if x_hex is None:
+        return
+
+    # 搜索uexp文件
+    uexp_files = find_uexp_files("/storage/emulated/0/半生/uexp/")
+    if not uexp_files:
+        print("未找到uexp文件")
+        return
+
+    # 打印uexp文件供用户选择
+    print("找到以下uexp文件：")
+    for index, file in enumerate(uexp_files):
+        print(f"{index + 1}. {file}")
+
+    # 获取用户选择的文件
+    choice = input("请输入文件序号：")
+    if choice == "":
+        print("程序已退出")
+        return
+
+    selected_file = next((file for index, file in enumerate(uexp_files) if str(index + 1) in choice), None)
+    if selected_file:
+        print(f"选择的文件：{selected_file}")
+        process_file(f"/storage/emulated/0/半生/uexp/{selected_file}", a_bytes, b_bytes, x_hex)
+    else:
+        print("未找到指定的文件")
+
+if __name__ == "__main__":
+    main()

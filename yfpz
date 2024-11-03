@@ -1,0 +1,123 @@
+#半生
+import os
+import re
+
+def int_to_little_endian(num):
+    # 将整数转换为字节序列
+    return num.to_bytes((num.bit_length() + 7) // 8, byteorder='little')
+
+def search_and_swap(file_path, hex_string1, hex_string2):
+    # 读取文件内容
+    with open(file_path, 'rb') as file:
+        content = file.read()
+
+    # 将内容转换为字节列表
+    content_list = list(content)
+
+    # 搜索第一个十六进制字符串的位置并处理
+    match1 = re.search(hex_string1, content.hex())
+    if match1:
+        replace_position1 = match1.start() // 2
+        pre_bytes_start1 = replace_position1 - 33
+        if pre_bytes_start1 < 0:
+            pre_bytes_start1 = 0
+        pre_bytes1 = content_list[pre_bytes_start1:replace_position1]
+    else:
+        pre_bytes1 = []
+
+    # 搜索第二个十六进制字符串的位置并处理
+    match2 = re.search(hex_string2, content.hex())
+    if match2:
+        replace_position2 = match2.start() // 2
+        pre_bytes_start2 = replace_position2 - 33
+        if pre_bytes_start2 < 0:
+            pre_bytes_start2 = 0
+        pre_bytes2 = content_list[pre_bytes_start2:replace_position2]
+    else:
+        pre_bytes2 = []
+
+    # 互换两组十六进制数对应的字节
+    if pre_bytes1 and pre_bytes2:
+        content_list[pre_bytes_start1:replace_position1] = pre_bytes2
+        content_list[pre_bytes_start2:replace_position2] = pre_bytes1
+
+        # 将修改后的内容写回文件
+        with open(file_path, 'wb') as file:
+            file.write(bytearray(content_list))
+        print(f"文件 {file_path} 已修改")
+
+def main():
+    # 用户输入文件夹路径
+    folder_path_h = "/storage/emulated/0/半生/衣服配置/"
+    h_files = [f for f in os.listdir(folder_path_h) if f.endswith('.h')]
+
+    # 列出所有.h文件
+    if not h_files:
+        print("没有找到任何.h文件")
+        return
+
+    # 打印文件名和序号
+    for index, file_name in enumerate(h_files, start=1):
+        print(f"{index}. {file_name}")
+
+    selected_index = input("请输入要使用的配置文件: ")
+    if selected_index == "":
+        print("程序已退出")
+        return
+
+    selected_index = int(selected_index)
+    if 1 <= selected_index <= len(h_files):
+        selected_file = os.path.join(folder_path_h, h_files[selected_index - 1])
+        print(f"选中的文件路径为: {selected_file}")
+
+        # 读取选中文件中的内容
+        try:
+            with open(selected_file, 'r', encoding='utf-8') as file:
+                content = file.read()
+        except FileNotFoundError:
+            print(f"文件{selected_file}未找到")
+            return
+
+        # 使用正则表达式提取大括号内的数字，忽略注释
+        pattern = re.compile(r'\{([^}]*)\}')
+        matches = pattern.findall(content)
+
+        folder_path_uexp = "/storage/emulated/0/半生/uexp/"
+        uexp_files = [f for f in os.listdir(folder_path_uexp) if f.endswith('.uexp')]
+        if not uexp_files:
+            print("没有找到任何.uexp文件")
+            return
+
+        selected_uexp_file = None
+        for index, file_name in enumerate(uexp_files, start=1):
+            print(f"{index}. {file_name}")
+            selected_uexp_index = input("请输入要修改的文件序号: ")
+            if selected_uexp_index == "":
+                print("程序已退出")
+                return
+            selected_uexp_index = int(selected_uexp_index)
+            if 1 <= selected_uexp_index <= len(uexp_files):
+                selected_uexp_file = os.path.join(folder_path_uexp, uexp_files[selected_uexp_index - 1])
+                print(f"选中的文件路径为: {selected_uexp_file}")
+                break
+        else:
+            print("输入的序号不正确")
+            return
+
+        for match in matches:
+            # 忽略大括号内的非数字内容
+            numbers = re.sub(r'[^\d-]', '', match).split('-')
+            if len(numbers) == 2:
+                num1, num2 = numbers
+                hex_string1 = int_to_little_endian(int(num1)).hex()
+                hex_string2 = int_to_little_endian(int(num2)).hex()
+                print(f"要修改衣服的小端序为: {hex_string1}")
+                print(f"要改为衣服的小端序为: {hex_string2}")
+
+                # 搜索文件并互换字节
+                search_and_swap(selected_uexp_file, hex_string1, hex_string2)
+    else:
+        print("输入的序号不正确")
+
+if __name__ == "__main__":
+    main()

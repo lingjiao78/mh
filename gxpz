@@ -1,0 +1,63 @@
+#半生
+import os
+import glob
+
+def find_smallest_file(directory):
+    # 获取目录中的所有文件
+    files = glob.glob(os.path.join(directory, '*'))
+    # 根据文件大小排序并返回最小的文件
+    return min(files, key=os.path.getsize, default=None)
+
+def find_and_save_ascii(file_path, pattern, offset):
+    try:
+        with open(file_path, 'rb') as file:
+            data = file.read()
+        pattern = bytes.fromhex(pattern)
+        index = data.find(pattern)
+        if index != -1:
+            # 计算目标位置
+            target_index = index - offset - 1 * 2  # 减去2对16进制（4字节）
+            if target_index >= 0:
+                # 提取前1对16进制
+                target_hex = data[target_index:target_index + 2].hex().upper()
+                # 将16进制转换为ASCII字符
+                ascii_char = bytearray.fromhex(target_hex).decode('ascii')
+                return ascii_char
+            else:
+                print("模式前没有足够的数据")
+        else:
+            print("未找到指定的16进制模式")
+    except FileNotFoundError:
+        print("文件未找到，请检查路径是否正确")
+    except Exception as e:
+        print(f"发生错误：{e}")
+
+def save_ascii_to_file(ascii_data, save_path):
+    try:
+        with open(save_path, 'w') as file:
+            file.write(ascii_data)
+        print(f"数据已保存到 {save_path}")
+    except Exception as e:
+        print(f"保存数据时发生错误：{e}")
+
+# 目录路径
+directory_path = '/storage/emulated/0/半生/uexp/'
+save_directory = '/storage/emulated/0/'
+
+# 找到最小的文件
+smallest_file_path = find_smallest_file(directory_path)
+if smallest_file_path:
+    # 要搜索的16进制模式
+    pattern = '841D9A'
+    # 偏移量为93对16进制，即186字节
+    offset = 93 * 2
+
+    # 执行函数
+    ascii_data = find_and_save_ascii(smallest_file_path, pattern, offset)
+    if ascii_data:
+        # 配置文件的文件名，可以根据需要修改
+        config_filename = '配置'
+        save_path = os.path.join(save_directory, config_filename)
+        save_ascii_to_file(ascii_data, save_path)
+else:
+    print("目录中没有找到文件")

@@ -1,0 +1,126 @@
+#by 半生
+import os
+import re
+
+
+def int_to_little_endian(num):
+    # 将整数转换为字节序列
+    return num.to_bytes((num.bit_length() + 7) // 8, byteorder='little')
+
+
+def search_and_swap(file_path, hex_string1, hex_string2):
+    # 读取文件内容
+    with open(file_path, 'rb') as file:
+        content = file.read()
+
+    # 将内容转换为字节列表
+    content_list = list(content)
+
+    # 搜索第一个十六进制字符串的位置并处理
+    match1 = re.search(hex_string1, content.hex())
+    if match1:
+        replace_position1 = match1.start() // 2
+        pre_bytes_start1 = replace_position1 - 33
+        if pre_bytes_start1 < 0:
+            pre_bytes_start1 = 0
+        pre_bytes1 = content_list[pre_bytes_start1:replace_position1]
+    else:
+        pre_bytes1 = []
+
+    # 搜索第二个十六进制字符串的位置并处理
+    match2 = re.search(hex_string2, content.hex())
+    if match2:
+        replace_position2 = match2.start() // 2
+        pre_bytes_start2 = replace_position2 - 33
+        if pre_bytes_start2 < 0:
+            pre_bytes_start2 = 0
+        pre_bytes2 = content_list[pre_bytes_start2:replace_position2]
+    else:
+        pre_bytes2 = []
+
+    # 互换两组十六进制数对应的字节
+    if pre_bytes1 and pre_bytes2:
+        content_list[pre_bytes_start1:replace_position1] = pre_bytes2
+        content_list[pre_bytes_start2:replace_position2] = pre_bytes1
+
+        # 将修改后的内容写回文件
+        with open(file_path, 'wb') as file:
+            file.write(bytearray(content_list))
+        print(f"文件 {file_path} 已修改")
+
+
+def get_integer_input(prompt):
+    while True:
+        user_input = input(prompt)
+        if user_input.isdigit():  # 检查输入是否为数字
+            return int(user_input)
+        else:
+            print("输入无效，请输入一个整数")
+
+def main():
+    # 用户输入两个整数
+    user_input = input("请输入要修改的衣服代码: ")
+    if user_input == "":
+        print("程序已退出")
+        return  # 退出main函数，从而结束程序
+
+    try:
+        num1 = int(user_input)
+    except ValueError:
+        print("输入无效，请输入一个整数")
+        return  # 输入非整数值时退出程序
+
+    user_input = input("请输入要改为的衣服代码: ")
+    if user_input == "":
+        print("程序已退出")
+        return  # 退出main函数，从而结束程序
+
+    try:
+        num2 = int(user_input)
+    except ValueError:
+        print("输入无效，请输入一个整数")
+        return  # 输入非整数值时退出程序
+
+    # 转换为小端序
+    little_endian_bytes1 = int_to_little_endian(num1)
+    little_endian_bytes2 = int_to_little_endian(num2)
+
+    # 打印小端序的字节序列
+    hex_string1 = little_endian_bytes1.hex()
+    hex_string2 = little_endian_bytes2.hex()
+    print(f"要修改的衣服小端序为: {hex_string1}")
+    print(f"要改为的衣服小端序为: {hex_string2}")
+
+    # 用户输入文件夹路径
+    folder_path = "/storage/emulated/0/半生/uexp/"
+
+    # 列出所有.uexp文件
+    uexp_files = [f for f in os.listdir(folder_path) if f.endswith('.uexp')]
+
+    # 打印文件名和序号
+    for index, file_name in enumerate(uexp_files, start=1):
+        print(f"{index}. {file_name}")
+
+    user_input = input("请输入你要修改文件的序号: ")
+    if user_input == "":
+        print("程序已退出")
+        return  # 退出main函数，从而结束程序
+
+    try:
+        selected_index = int(user_input)
+        if 1 <= selected_index <= len(uexp_files):
+            selected_file = os.path.join(folder_path, uexp_files[selected_index - 1])
+            print(f"选中的文件路径为: {selected_file}")
+
+            # 搜索文件并互换字节
+            search_and_swap(selected_file, hex_string1, hex_string2)
+        else:
+            print("输入的序号不在范围内，请重新输入")
+    except ValueError:
+        print("输入无效，请输入一个有效的序号")
+
+    # 等待用户按回车键退出程序
+    input("按回车退出程序...")
+
+if __name__ == "__main__":
+    main()

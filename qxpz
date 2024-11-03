@@ -1,0 +1,161 @@
+#半生
+import os
+import re
+
+# 1. 输入数字并转换为小端序
+def to_little_endian(num_str):
+    num = int(num_str)
+    num_bytes = num.to_bytes((num.bit_length() + 7) // 8, 'little')
+    return num_bytes
+
+# 2. 读取配置文件内容并转换为十六进制字符串
+def read_config_file(config_path):
+    try:
+        with open(config_path, 'rb') as file:
+            content_bytes = file.read()
+        content_hex = content_bytes.hex()
+        print(f"配置文件内容（十六进制）: {content_hex}")
+        return content_hex
+    except FileNotFoundError:
+        print(f"文件{config_path}未找到")
+        return None
+
+# 3. 搜索uexp文件
+def find_uexp_files(directory):
+    return [f for f in os.listdir(directory) if f.endswith('.uexp')]
+
+# 4. 执行文件操作
+def process_file(file_path, a_bytes, b_bytes, x_hex):
+    try:
+        with open(file_path, 'rb') as file:
+            file_content = file.read()
+
+        a_index = file_content.find(a_bytes)
+        print(f"枪械的位置：{a_index}")
+
+        a_x_index = search_prev_hex(file_content, x_hex, a_index)
+        if a_x_index != -1:
+            x1_hex = file_content[a_x_index + len(x_hex)//2:a_x_index + len(x_hex)//2 + 39].hex()
+            print(f"枪械上与配置匹配的位置：{a_x_index}")
+            print(f"枪械以下十六进制：{x1_hex}")
+        else:
+            print("在枪械上没有找到与配置匹配的十六进制")
+            return
+
+        b_index = file_content.find(b_bytes, a_index + len(a_bytes))
+        print(f"皮肤的位置：{b_index}")
+
+        b_x_index = search_prev_hex(file_content, x_hex, b_index)
+        if b_x_index != -1:
+            x2_hex = file_content[b_x_index + len(x_hex)//2:b_x_index + len(x_hex)//2 + 39].hex()
+            print(f"皮肤上与配置匹配的位置：{b_x_index}")
+            print(f"皮肤以下十六进制：{x2_hex}")
+        else:
+            print("在皮肤上没有找到与配置匹配的十六进制")
+            return
+
+        new_content = (
+            file_content[:a_x_index + len(x_hex)//2] +
+            bytes.fromhex(x2_hex) +
+            file_content[a_x_index + len(x_hex)//2 + 39:b_x_index + len(x_hex)//2] +
+            bytes.fromhex(x1_hex) +
+            file_content[b_x_index + len(x_hex)//2 + 39:]
+        )
+
+        with open(file_path, 'wb') as file:
+            file.write(new_content)
+
+        if new_content[a_x_index + len(x_hex)//2:a_x_index + len(x_hex)//2 + 39].hex() == x2_hex and new_content[b_x_index + len(x_hex)//2:b_x_index + len(x_hex)//2 + 39].hex() == x1_hex:
+            print("成功")
+        else:
+            print("失败")
+
+    except FileNotFoundError:
+        print(f"文件{file_path}未找到")
+    except Exception as e:
+        print(f"发生错误：{e}")
+
+def search_prev_hex(data, hex_str, limit):
+    index = data.rfind(bytes.fromhex(hex_str), 0, limit)
+    if index != -1:
+        return index
+    return -1
+
+def main():
+    config_directory = "/storage/emulated/0/半生/枪械配置/"
+    config_files = find_files_with_extension(config_directory, '.h')
+    if not config_files:
+        print("未找到配置文件")
+        return
+
+    print("找到以下配置文件：")
+    for index, file in enumerate(config_files):
+        print(f"{index + 1}. {file}")
+
+    choice = input("请输入要使用的配置文件序号：")
+    if choice == "":
+        print("程序已退出")
+        return
+
+    try:
+        selected_h_file = config_files[int(choice) - 1]
+        selected_h_file_path = os.path.join(config_directory, selected_h_file)
+    except (IndexError, ValueError):
+        print("输入的序号无效")
+        return
+
+    print(f"选择的文件：{selected_h_file_path}")
+    try:
+        with open(selected_h_file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+    except FileNotFoundError:
+        print(f"文件{selected_h_file_path}未找到")
+        return
+
+    pattern = re.compile(r'\{([^}]*)\}')
+    matches = pattern.findall(content)
+
+    uexp_directory = "/storage/emulated/0/半生/uexp/"
+    uexp_files = find_uexp_files(uexp_directory)
+    if not uexp_files:
+        print("未找到uexp文件")
+        return
+
+    print("找到以下uexp文件：")
+    for index, file in enumerate(uexp_files):
+        print(f"{index + 1}. {file}")
+
+    choice = input("请输入要修改的uexp文件序号：")
+    if choice == "":
+        print("程序已退出")
+        return
+
+    try:
+        selected_uexp_file = uexp_files[int(choice) - 1]
+        selected_uexp_file_path = os.path.join(uexp_directory, selected_uexp_file)
+    except (IndexError, ValueError):
+        print("输入的序号无效")
+        return
+
+    print(f"选择的uexp文件：{selected_uexp_file_path}")
+    for match in matches:
+        numbers = match.split('-')
+        if len(numbers) == 2:
+            num1, num2 = numbers
+            a_bytes = to_little_endian(num1)
+            b_bytes = to_little_endian(num2)
+            print(f"枪械小端序结果: {a_bytes.hex()}")
+            print(f"皮肤小端序结果: {b_bytes.hex()}")
+
+            # 配置文件是固定的，直接定义路径
+            config_path = "/storage/emulated/0/配置"
+            x_hex = read_config_file(config_path)
+            if x_hex is None:
+                continue
+            process_file(selected_uexp_file_path, a_bytes, b_bytes, x_hex)
+
+def find_files_with_extension(directory, extension):
+    return [f for f in os.listdir(directory) if f.endswith(extension)]
+
+if __name__ == "__main__":
+    main()
