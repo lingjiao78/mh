@@ -60,64 +60,74 @@ def main():
     for index, file_name in enumerate(h_files, start=1):
         print(f"{index}. {file_name}")
 
-    selected_index = input("请输入要使用的配置文件: ")
+    selected_index = input("请输入要使用的配置文件序号: ")
     if selected_index == "":
         print("程序已退出")
         return
 
-    selected_index = int(selected_index)
-    if 1 <= selected_index <= len(h_files):
-        selected_file = os.path.join(folder_path_h, h_files[selected_index - 1])
-        print(f"选中的文件路径为: {selected_file}")
-
-        # 读取选中文件中的内容
-        try:
-            with open(selected_file, 'r', encoding='utf-8') as file:
-                content = file.read()
-        except FileNotFoundError:
-            print(f"文件{selected_file}未找到")
-            return
-
-        # 使用正则表达式提取大括号内的数字，忽略注释
-        pattern = re.compile(r'\{([^}]*)\}')
-        matches = pattern.findall(content)
-
-        folder_path_uexp = "/storage/emulated/0/半生/uexp/"
-        uexp_files = [f for f in os.listdir(folder_path_uexp) if f.endswith('.uexp')]
-        if not uexp_files:
-            print("没有找到任何.uexp文件")
-            return
-
-        selected_uexp_file = None
-        for index, file_name in enumerate(uexp_files, start=1):
-            print(f"{index}. {file_name}")
-            selected_uexp_index = input("请输入要修改的文件序号: ")
-            if selected_uexp_index == "":
-                print("程序已退出")
-                return
-            selected_uexp_index = int(selected_uexp_index)
-            if 1 <= selected_uexp_index <= len(uexp_files):
-                selected_uexp_file = os.path.join(folder_path_uexp, uexp_files[selected_uexp_index - 1])
-                print(f"选中的文件路径为: {selected_uexp_file}")
-                break
+    try:
+        selected_index = int(selected_index)
+        if 1 <= selected_index <= len(h_files):
+            selected_file = os.path.join(folder_path_h, h_files[selected_index - 1])
+            print(f"选中的文件路径为: {selected_file}")
         else:
             print("输入的序号不正确")
             return
+    except ValueError:
+        print("请输入一个有效的序号")
+        return
 
-        for match in matches:
-            # 忽略大括号内的非数字内容
-            numbers = re.sub(r'[^\d-]', '', match).split('-')
-            if len(numbers) == 2:
-                num1, num2 = numbers
-                hex_string1 = int_to_little_endian(int(num1)).hex()
-                hex_string2 = int_to_little_endian(int(num2)).hex()
-                print(f"要修改衣服的小端序为: {hex_string1}")
-                print(f"要改为衣服的小端序为: {hex_string2}")
+    # 读取选中文件中的内容
+    try:
+        with open(selected_file, 'r', encoding='utf-8') as file:
+            content = file.read()
+    except FileNotFoundError:
+        print(f"文件{selected_file}未找到")
+        return
 
-                # 搜索文件并互换字节
-                search_and_swap(selected_uexp_file, hex_string1, hex_string2)
-    else:
-        print("输入的序号不正确")
+    # 使用正则表达式提取大括号内的数字，忽略注释
+    pattern = re.compile(r'\{([^}]*)\}')
+    matches = pattern.findall(content)
+
+    folder_path_uexp = "/storage/emulated/0/半生/uexp/"
+    uexp_files = [f for f in os.listdir(folder_path_uexp) if f.endswith('.uexp')]
+    if not uexp_files:
+        print("没有找到任何.uexp文件")
+        return
+
+    print("找到以下.uexp文件：")
+    for index, file_name in enumerate(uexp_files, start=1):
+        print(f"{index}. {file_name}")
+
+    selected_uexp_index = input("请输入要修改的文件序号: ")
+    if selected_uexp_index == "":
+        print("程序已退出")
+        return
+
+    try:
+        selected_uexp_index = int(selected_uexp_index)
+        if 1 <= selected_uexp_index <= len(uexp_files):
+            selected_uexp_file = os.path.join(folder_path_uexp, uexp_files[selected_uexp_index - 1])
+            print(f"选中的文件路径为: {selected_uexp_file}")
+        else:
+            print("输入的序号不正确")
+            return
+    except ValueError:
+        print("请输入一个有效的序号")
+        return
+
+    for match in matches:
+        # 忽略大括号内的非数字内容
+        numbers = re.sub(r'[^\d-]', '', match).split('-')
+        if len(numbers) == 2:
+            num1, num2 = numbers
+            hex_string1 = int_to_little_endian(int(num1)).hex()
+            hex_string2 = int_to_little_endian(int(num2)).hex()
+            print(f"要修改衣服的小端序为: {hex_string1}")
+            print(f"要改为衣服的小端序为: {hex_string2}")
+
+            # 搜索文件并互换字节
+            search_and_swap(selected_uexp_file, hex_string1, hex_string2)
 
 if __name__ == "__main__":
     main()
