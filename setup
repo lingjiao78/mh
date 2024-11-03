@@ -1,4 +1,7 @@
 chmod +x mh/ui
 chmod +x mh/by
+#!/bin/bash
 
-alias mh='$HOME/mh/ui'
+if [ -f "/etc/bash.bashrc" ]; then
+    if ! grep -q "alias mh='$HOME/mh/ui'" "/etc/bash.bashrc"; then
+ echo "下次输入mh进入程序"
